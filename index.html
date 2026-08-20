@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Typeme V2.1 — Advanced Typing Test, Practice & Game Platform</title>
-  <meta name="description" content="Typeme V2.1 is India's premier typing platform for SSC CGL, CHSL, MTS, Stenographer & Govt Exam aspirants. Features 8000 KDPH speed tests, 7 eye-protection themes, arcade games, and dynamic analytics.">
+  <title>Typeme V3 — Advanced Typing Test, Practice & Game Platform</title>
+  <meta name="description" content="Typeme V3 is India's premier typing platform for SSC CGL, CHSL, MTS, Stenographer & Govt Exam aspirants. Features 8000 KDPH speed tests, 7 eye-protection themes, arcade games, and dynamic analytics.">
   
   <!-- PWA Manifest & Icons -->
   <link rel="manifest" href="manifest.json">
@@ -101,6 +101,17 @@
       .theme-sub { background: #f9f9f9 !important; color: #000 !important; }
     }
     .print-only { display: none; }
+  
+    .vk-glass-dark { background: rgba(15,23,42,0.8); backdrop-filter: blur(18px); border: 1px solid rgba(255,255,255,0.15); }
+    .vk-glass-light { background: rgba(255,255,255,0.85); backdrop-filter: blur(18px); border: 1px solid rgba(0,0,0,0.1); color:#0f172a; }
+    .vk-glass-neon { background: linear-gradient(135deg, rgba(99,102,241,0.35), rgba(168,85,247,0.35)); backdrop-filter: blur(20px); border: 1px solid rgba(129,140,248,0.5); }
+    .vk-glass-colorful { background: linear-gradient(135deg, rgba(244,114,182,0.35), rgba(99,102,241,0.4), rgba(52,211,153,0.35)); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.3); }
+    .vk-key { transition: all 0.12s; font-family: 'JetBrains Mono', monospace; font-weight:700; }
+    .vk-key.active { background:#6366f1 !important; color:white !important; transform:scale(0.9); box-shadow:0 0 15px rgba(99,102,241,0.9); }
+    .vk-float { position:fixed; z-index:60; cursor:grab; }
+    .char-correct { color:#60a5fa !important; background:rgba(59,130,246,0.2) !important; }
+    .char-wrong { color:#f87171 !important; background:rgba(239,68,68,0.3) !important; }
+
   </style>
 </head>
 <body class="theme-midnight min-h-screen transition-colors duration-300">
@@ -393,16 +404,23 @@
 
       // 3. Admin State (HIDDEN - Access only via logo click + SaJahan0)
       const [adminState, setAdminState] = useState(() => {
-        const saved = localStorage.getItem("typeme_admin_cfg");
-        return saved ? JSON.parse(saved) : {
-          gamesEnabled: true,
-          adSenseEnabled: false,
-          adSenseClientId: "ca-pub-1234567890123456"
-        };
+        const defaults = { gamesEnabled: true, testsEnabled: true, dashboardEnabled: true, adSenseEnabled: true, adSenseClientId: "ca-pub-1234567890123456", notices: [] };
+        try { const s=localStorage.getItem("typeme_admin_cfg"); if(s){ const p=JSON.parse(s); return {...defaults, ...p, adSenseEnabled:true, notices:p.notices||[]}; } }catch(e){}
+        return defaults;
       });
       const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
       const [showAdminLoginModal, setShowAdminLoginModal] = useState(false);
       const [adminPassInput, setAdminPassInput] = useState("");
+      const [vkMode, setVkMode] = useState(() => localStorage.getItem("typeme_vk_mode") || "on");
+      const [vkTheme, setVkTheme] = useState(() => localStorage.getItem("typeme_vk_theme") || "dark");
+      const [vkScale, setVkScale] = useState(() => parseFloat(localStorage.getItem("typeme_vk_scale") || "1"));
+      const [vkPos, setVkPos] = useState(() => { try { return JSON.parse(localStorage.getItem("typeme_vk_pos") || '{"x":20,"y":450}'); } catch(e){ return {x:20,y:450}; } });
+      const [vkActiveKey, setVkActiveKey] = useState("");
+      const [isVkDragging, setIsVkDragging] = useState(false);
+      const [vkDragOffset, setVkDragOffset] = useState({x:0,y:0});
+      const [noticeInput, setNoticeInput] = useState("");
+      const [historyFilter, setHistoryFilter] = useState("");
+      const vkBoardRef = useRef(null);
 
       // 4. Passages State
       const [passages, setPassages] = useState(() => {
@@ -478,6 +496,12 @@
       useEffect(() => { localStorage.setItem("typeme_passages", JSON.stringify(passages)); }, [passages]);
       useEffect(() => { localStorage.setItem("typeme_admin_cfg", JSON.stringify(adminState)); }, [adminState]);
       useEffect(() => { localStorage.setItem("typeme_game_stats", JSON.stringify(gameStats)); }, [gameStats]);
+      useEffect(() => { localStorage.setItem("typeme_vk_mode", vkMode); }, [vkMode]);
+      useEffect(() => { localStorage.setItem("typeme_vk_theme", vkTheme); }, [vkTheme]);
+      useEffect(() => { localStorage.setItem("typeme_vk_scale", String(vkScale)); }, [vkScale]);
+      useEffect(() => { localStorage.setItem("typeme_vk_pos", JSON.stringify(vkPos)); }, [vkPos]);
+      useEffect(() => { if(!isTesting){ setVkActiveKey(""); return; } const d=(e)=>setVkActiveKey(e.key); const u=()=>setVkActiveKey(""); window.addEventListener("keydown",d); window.addEventListener("keyup",u); return()=>{ window.removeEventListener("keydown",d); window.removeEventListener("keyup",u); }; }, [isTesting]);
+      useEffect(() => { if(!isVkDragging) return; const mv=(e)=>{ const cx=e.touches?e.touches[0].clientX:e.clientX; const cy=e.touches?e.touches[0].clientY:e.clientY; setVkPos({x:cx-vkDragOffset.x, y:cy-vkDragOffset.y}); }; const up=()=>setIsVkDragging(false); window.addEventListener("mousemove",mv); window.addEventListener("mouseup",up); window.addEventListener("touchmove",mv); window.addEventListener("touchend",up); return()=>{ window.removeEventListener("mousemove",mv); window.removeEventListener("mouseup",up); window.removeEventListener("touchmove",mv); window.removeEventListener("touchend",up); }; }, [isVkDragging, vkDragOffset]);
 
       const currentPassage = useMemo(() => {
         return passages.find(p => p.id === selectedPassageId) || passages[0];
@@ -577,7 +601,7 @@
 
         setLastTestSummary(summary);
         setShowResultScreen(true);
-        setTestHistory(prev => [summary, ...prev].slice(0, 50));
+        setTestHistory(prev => [summary, ...prev].slice(0, 30));
         setTestStartTime(null);
 
         // Background Google Apps Script sync
@@ -839,7 +863,7 @@
                 <div 
                   className="flex items-center gap-3 cursor-pointer select-none" 
                   onClick={handleLogoClick}
-                  title="Typeme V2.1"
+                  title="Typeme V3"
                 >
                   <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-700 flex items-center justify-center text-white font-black text-xl shadow-lg">
                     ⚡
@@ -958,6 +982,8 @@
             </header>
 
             {/* Main Content Area */}
+                        {adminState.notices && adminState.notices.length > 0 && (<div className="max-w-[1440px] mx-auto px-4 md:px-6 pt-4 space-y-2 no-print">{adminState.notices.map(n => (<div key={n.id} className="w-full rounded-xl bg-amber-500/15 border border-amber-500/30 px-4 py-2.5 flex justify-between text-xs"><span>📢 {n.text}</span><button onClick={() => setAdminState(p => ({...p, notices: p.notices.filter(x => x.id !== n.id)}))} className="px-2 py-1 rounded bg-rose-500/20">✕</button></div>))}</div>)}
+            <div className="max-w-[1440px] mx-auto px-4 md:px-6 pt-4 no-print"><div className="rounded-xl bg-indigo-500/10 border border-indigo-500/20 px-4 py-2 text-center text-[11px]">● AdSense ALWAYS ON - V3</div></div>
             <main className="max-w-[1440px] mx-auto px-4 md:px-6 py-6">
 
               {/* TAB 1: HOME (NO creator photo/name on Home - kept only in About Us) */}
@@ -990,7 +1016,7 @@
                       </div>
 
                       <h1 className="text-3xl md:text-6xl font-black tracking-tight leading-tight">
-                        Speed & Accuracy with <span className="text-indigo-400">Typeme V2.1</span>
+                        Speed & Accuracy with <span className="text-indigo-400">Typeme V3</span>
                       </h1>
 
                       <p className="text-sm md:text-base opacity-80 leading-relaxed">
@@ -1229,9 +1255,9 @@
                           const typed = userInputText[idx];
                           if (idx < userInputText.length) {
                             if (typed === char) {
-                              style = "text-emerald-400 bg-emerald-500/20 rounded-sm";
+                              style = "char-correct text-blue-400 bg-blue-500/20 rounded-sm";
                             } else {
-                              style = "text-rose-400 bg-rose-500/25 underline decoration-rose-500 rounded-sm";
+                              style = "char-wrong text-red-400 bg-red-500/30 rounded-sm";
                             }
                           }
                           if (idx === userInputText.length) {
@@ -1256,18 +1282,21 @@
                       />
                     </div>
 
-                    <div className="flex items-center justify-between text-xs px-2">
-                      <div className="flex items-center gap-2">
-                        <span className="opacity-60">Font Size:</span>
-                        <button onClick={() => setFontSize(f => Math.max(14, f - 1))} className="px-2.5 py-1 rounded border border-white/10 font-mono">A-</button>
-                        <button onClick={() => setFontSize(f => Math.min(26, f + 1))} className="px-2.5 py-1 rounded border border-white/10 font-mono">A+</button>
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center justify-between text-xs px-2">
+                        <div className="flex items-center gap-2"><span className="opacity-60">Font Size:</span><button onClick={() => setFontSize(f => Math.max(14, f - 1))} className="px-2.5 py-1 rounded border border-white/10">A-</button><button onClick={() => setFontSize(f => Math.min(26, f + 1))} className="px-2.5 py-1 rounded border border-white/10">A+</button></div>
+                        <div className="flex gap-2"><button onClick={startTest} className="px-3 py-1.5 rounded-lg border border-white/10 text-xs">Restart</button>{isTesting && (<button onClick={submitTest} className="px-4 py-1.5 rounded-lg bg-indigo-600 text-white font-bold text-xs">Submit</button>)}</div>
                       </div>
-                      <div className="flex gap-2">
-                        <button onClick={startTest} className="px-3.5 py-1.5 rounded-lg border border-white/10 text-xs">↻ Restart</button>
-                        {isTesting && (
-                          <button onClick={submitTest} className="px-4 py-1.5 rounded-lg bg-indigo-600 text-white font-bold text-xs">✓ Submit Test</button>
-                        )}
+                      <div className="rounded-2xl theme-card border border-white/10 p-3 flex flex-wrap gap-2 items-center justify-between">
+                        <div className="flex items-center gap-2 text-xs"><span className="font-bold">Keyboard:</span><div className="flex gap-1 p-1 rounded-full bg-black/20 border border-white/10">{["on","off","move"].map(m => (<button key={m} onClick={() => setVkMode(m)} className={`px-3 py-1 rounded-full text-[11px] font-bold uppercase ${vkMode===m ? "bg-indigo-600 text-white" : "opacity-60"}`}>{m}</button>))}</div></div>
+                        <div className="flex items-center gap-2 text-xs"><select value={vkTheme} onChange={e => setVkTheme(e.target.value)} className="px-2 py-1 rounded-lg bg-white/10 border border-white/15 text-[11px]"><option value="dark">Dark Glass</option><option value="light">Light Glass</option><option value="neon">Neon</option><option value="colorful">Colorful</option></select>{vkMode==="move" && (<><span className="text-[11px]">Size:</span><input type="range" min="0.7" max="1.4" step="0.1" value={vkScale} onChange={e => setVkScale(parseFloat(e.target.value))} className="w-16"/></>)}</div>
                       </div>
+                      {vkMode !== "off" && (
+                        <div ref={vkBoardRef} onMouseDown={e => { if(vkMode!=="move") return; setIsVkDragging(true); const r=e.currentTarget.getBoundingClientRect(); setVkDragOffset({x:e.clientX-r.left, y:e.clientY-r.top}); }} onTouchStart={e => { if(vkMode!=="move") return; setIsVkDragging(true); const r=e.currentTarget.getBoundingClientRect(); const t=e.touches[0]; setVkDragOffset({x:t.clientX-r.left, y:t.clientY-r.top}); }} className={vkMode==="move" ? `vk-float rounded-[20px] p-3 vk-glass-${vkTheme}` : `rounded-[20px] p-3 vk-glass-${vkTheme}`} style={vkMode==="move" ? { left:vkPos.x, top:vkPos.y, transform:`scale(${vkScale})`, transformOrigin:"top left", minWidth:"320px" } : { transform:`scale(${vkScale})`, transformOrigin:"top left" }}>
+                          <div className="space-y-1">{[["1","2","3","4","5","6","7","8","9","0","Backspace"],["Q","W","E","R","T","Y","U","I","O","P"],["A","S","D","F","G","H","J","K","L","Enter"],["Z","X","C","V","B","N","M","Shift"],["Space"]].map((row, ri) => (<div key={ri} className="flex gap-1 justify-center">{row.map((k, ki) => { const isActive = vkActiveKey && (k.toLowerCase()===vkActiveKey.toLowerCase() || (k==="Space" && vkActiveKey===" ") || (k==="Backspace" && vkActiveKey==="Backspace") || (k==="Enter" && vkActiveKey==="Enter")); const isSpace=k==="Space"; return (<div key={ri+"-"+ki} className={`vk-key grid place-items-center rounded-lg border text-[11px] py-2 px-2 ${isSpace ? "flex-1 max-w-[200px]" : "min-w-[32px]"} ${isActive ? "active" : "bg-white/10 border-white/10"}`}>{isSpace ? "Space" : k}</div>); })}</div>))}</div>
+                          <div className="mt-2 text-[10px] opacity-50 text-center">Live keyboard - Blue correct Red wrong - {vkTheme}</div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1355,7 +1384,7 @@
                     {/* Developer Signature Seal */}
                     <div className="border-t border-white/10 pt-4 flex flex-wrap items-center justify-between gap-4 text-xs opacity-70">
                       <div>
-                        <div>Platform: <b>Typeme V2.1 (Advanced Govt Exam Edition)</b></div>
+                        <div>Platform: <b>Typeme V3 (Advanced Govt Exam Edition)</b></div>
                         <div>Certified & Maintained by: <b>Sajahan Ali</b></div>
                       </div>
                       <div className="text-right">
@@ -1629,7 +1658,7 @@
 
                   <div className="rounded-2xl theme-card overflow-hidden shadow-sm">
                     <div className="p-4 border-b border-white/10 font-bold text-sm">
-                      Recent Test History (Last 20 Tests)
+                      Recent Test History (Last 30 Tests)
                     </div>
                     {testHistory.length === 0 ? (
                       <div className="p-8 text-center text-xs opacity-60">No test history recorded yet. Take a test to view analytics.</div>
@@ -1648,7 +1677,7 @@
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-white/5">
-                            {testHistory.slice(0, 20).map((t, idx) => (
+                            {testHistory.slice(0, 30).map((t, idx) => (
                               <tr key={idx} className="hover:bg-white/5">
                                 <td className="p-3 opacity-70 mono">{t.date} {t.time}</td>
                                 <td className="p-3 font-semibold">{t.exam}</td>
@@ -1870,7 +1899,7 @@
           {/* Footer */}
           <footer className="border-t border-white/10 py-6 text-xs opacity-60 no-print">
             <div className="max-w-[1440px] mx-auto px-4 md:px-6 flex flex-wrap justify-between items-center gap-3">
-              <div>Typeme V2.1 • Certified by <b>{CREATOR_NAME}</b> • 8000 KDPH Benchmark</div>
+              <div>Typeme V3 • Certified by <b>{CREATOR_NAME}</b> • 8000 KDPH Benchmark</div>
               <div className="flex items-center gap-4">
                 <button onClick={() => setActiveTab("settings")} className="underline">Profile</button>
                 <button onClick={() => setActiveTab("rules")} className="underline">SSC Guidelines</button>
@@ -1885,7 +1914,7 @@
               <div className="w-full max-w-md rounded-3xl theme-card p-6 md:p-8 shadow-2xl space-y-5 border border-white/10">
                 <div className="text-center space-y-1">
                   <div className="w-12 h-12 mx-auto rounded-2xl bg-indigo-600 text-white font-black text-2xl grid place-items-center shadow-lg">⚡</div>
-                  <h3 className="font-black text-xl pt-2">Welcome to Typeme V2.1</h3>
+                  <h3 className="font-black text-xl pt-2">Welcome to Typeme V3</h3>
                   <p className="text-xs opacity-70">Track typing progress and qualify on the All-India leaderboard.</p>
                 </div>
 
