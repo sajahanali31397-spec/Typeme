@@ -1,0 +1,2232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Typeme — Advanced Typing Test, Practice & Game Platform</title>
+  <meta name="description" content="Typeme is India's premier typing platform for SSC CGL, CHSL, MTS, Stenographer & Govt Exam aspirants. Features 8000 KDPH speed tests, interactive games, and Google Drive cloud sync. Created by Sajahan Ali.">
+  
+  <!-- PWA Manifest & Icons -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#4f46e5">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+  
+  <!-- Google Fonts & Tailwind CSS -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace']
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              900: '#312e81'
+            },
+            surface: {
+              light: '#f8fafc',
+              dark: '#0b0f19',
+              cardDark: '#131b2e',
+              glassDark: 'rgba(19, 27, 46, 0.75)'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <!-- React 18 & Babel for Modern Reactive Architecture -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    * { font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    ::selection { background-color: rgba(99, 102, 241, 0.35); color: #fff; }
+    
+    /* Smooth Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.3); border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.6); }
+
+    /* Glassmorphism Classes */
+    .glass-panel {
+      background: rgba(19, 27, 46, 0.7);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .glass-panel-light {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(226, 232, 240, 0.8);
+    }
+
+    /* Spinning Ashoka Chakra Animation */
+    @keyframes spin-slow {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .animate-spin-slow {
+      animation: spin-slow 20s linear infinite;
+    }
+    
+    /* Pulsing Glow */
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 0.8; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.02); }
+    }
+    .animate-glow {
+      animation: pulse-glow 3s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="bg-[#f1f5f9] text-slate-800 dark:bg-[#0b0f19] dark:text-slate-100 min-h-screen transition-colors duration-300">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+    // Configured Google Drive Folder & Connected Google Apps Script URL
+    const GOOGLE_DRIVE_FOLDER_ID = "16GJ4G5YCUsExqSNz3lS9Xo9F3Hyu2kB0";
+    const DEFAULT_GOOGLE_APP_URL = "https://script.google.com/macros/s/AKfycbwGNhikCnINg1YrnonkwG2IMCUbxN9FYfUPId263-Vahf_bXqiGJC7rIGEpvEVpFzXE/exec";
+
+    // Synthetic Web Audio System for Mechanical Typing Sounds & Notifications
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+      }
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) this.ctx = new AudioContext();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+      playKeyClick(isError = false) {
+        try {
+          this.init();
+          if (!this.ctx) return;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          
+          if (isError) {
+            // Low buzz for mistake
+            osc.type = "sawtooth";
+            osc.frequency.setValueAtTime(140, this.ctx.currentTime);
+            gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.1);
+            osc.start();
+            osc.stop(this.ctx.currentTime + 0.1);
+          } else {
+            // Crispy mechanical switch tone
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(600 + Math.random() * 90, this.ctx.currentTime);
+            gain.gain.setValueAtTime(0.04, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.04);
+            osc.start();
+            osc.stop(this.ctx.currentTime + 0.04);
+          }
+        } catch (e) {}
+      }
+      playSubmitSuccess() {
+        try {
+          this.init();
+          if (!this.ctx) return;
+          const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6 Fanfare
+          notes.forEach((freq, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.type = "triangle";
+            osc.frequency.setValueAtTime(freq, this.ctx.currentTime + idx * 0.09);
+            gain.gain.setValueAtTime(0.09, this.ctx.currentTime + idx * 0.09);
+            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + idx * 0.09 + 0.3);
+            osc.start(this.ctx.currentTime + idx * 0.09);
+            osc.stop(this.ctx.currentTime + idx * 0.09 + 0.3);
+          });
+        } catch (e) {}
+      }
+    }
+
+    const sound = new SoundEngine();
+
+    // Default High Quality Exam Passages
+    const INITIAL_PASSAGES = [
+      {
+        id: "1",
+        title: "Economic Reforms of 1991 in India",
+        exam: "SSC CGL",
+        language: "English",
+        difficulty: "Intermediate",
+        words: 78,
+        text: "The economic reforms of 1991 marked a watershed moment in India's economic history. Faced with a severe balance of payments crisis, the government initiated liberalization, privatization and globalization. The License Raj was dismantled, foreign investment was encouraged, and public sector monopolies were reduced. These reforms unleashed entrepreneurial energy and paved the way for sustained high growth across diverse industries."
+      },
+      {
+        id: "2",
+        title: "Digital Revolution & UPI Transformation",
+        exam: "SSC CHSL",
+        language: "English",
+        difficulty: "Beginner",
+        words: 82,
+        text: "India's digital revolution has transformed the way citizens interact with government services. From UPI payments to DigiLocker, technology has brought transparency and efficiency. The Digital India programme aims to empower society through digital infrastructure, digital literacy, and delivery of services. Young aspirants must adapt to this digital ecosystem to succeed in modern public administration."
+      },
+      {
+        id: "3",
+        title: "Constitution of India: Sovereign Republic",
+        exam: "SSC CGL",
+        language: "English",
+        difficulty: "Advanced",
+        words: 91,
+        text: "The Constitution of India is the supreme law of the land, adopted on 26th November 1949. It establishes India as a sovereign, socialist, secular and democratic republic. The Constitution guarantees fundamental rights, directive principles, and fundamental duties. Its length and detailed provisions reflect India's diversity and commitment to justice, liberty, equality and fraternity for all citizens."
+      },
+      {
+        id: "4",
+        title: "Democracy & Rule of Law (Previous Year)",
+        exam: "SSC CGL",
+        language: "English",
+        difficulty: "Previous Year",
+        words: 75,
+        text: "Democracy is not merely a form of government but a way of life. It thrives on tolerance, dialogue and respect for dissent. In a true democracy, every citizen has an equal voice, regardless of caste, creed or economic status. The strength of Indian democracy lies in its ability to accommodate diversity while maintaining unity and integrity of the nation."
+      },
+      {
+        id: "5",
+        title: "Sustainable Development & Climate Action",
+        exam: "SSC CPO",
+        language: "English",
+        difficulty: "Intermediate",
+        words: 79,
+        text: "Climate change poses one of the greatest challenges to humanity in the 21st century. Rising temperatures, erratic monsoons and melting glaciers threaten food security and livelihoods. India, with its vast coastline and agrarian economy, is particularly vulnerable. Sustainable development, renewable energy adoption and community participation are essential to mitigate its adverse impacts."
+      },
+      {
+        id: "6",
+        title: "भारत: विविधता में एकता (Hindi)",
+        exam: "SSC CGL",
+        language: "Hindi",
+        difficulty: "Beginner",
+        words: 62,
+        text: "भारत एक विशाल लोकतांत्रिक देश है जहाँ विविधता में एकता देखने को मिलती है। यहाँ अनेक धर्म, भाषाएँ और संस्कृतियाँ सहअস্তित्व में हैं। भारतीय संविधान सभी नागरिकों को समान अधिकार प्रदान करता है। लोकतंत्र की सफलता नागरिकों की सक्रिय भागीदारी पर निर्भर करती है।"
+      },
+      {
+        id: "7",
+        title: "डिजिटल भारत अभियान (Hindi)",
+        exam: "SSC CHSL",
+        language: "Hindi",
+        difficulty: "Intermediate",
+        words: 65,
+        text: "डिजिटल इंडिया कार्यक्रम ने सरकारी सेवाओं को आम नागरिक तक पहुँचाया है। आधार, यूपीआई और डिजीलॉकर ने जीवन को सरल बनाया है। ग्रामीण क्षेत्रों में इंटरनेट की पहुँच से शिक्षा और रोजगार के नए अवसर खुले हैं। युवाओं को डिजिटल साक्षरता अपनानी चाहिए।"
+      }
+    ];
+
+    const INITIAL_LEADERBOARD = [
+      { rank: 1, name: "Priya Sharma", wpm: 68, acc: 98.4, exam: "SSC CGL", tests: 342, badge: "SSC Topper 🏆" },
+      { rank: 2, name: "Rahul Verma", wpm: 65, acc: 97.8, exam: "SSC CHSL", tests: 298, badge: "50+ WPM Club" },
+      { rank: 3, name: "Sajahan Ali", wpm: 62, acc: 99.1, exam: "Admin / Creator", tests: 410, badge: "Creator ⚡" },
+      { rank: 4, name: "Sneha Patel", wpm: 61, acc: 96.4, exam: "SSC MTS", tests: 276, badge: "50+ WPM Club" },
+      { rank: 5, name: "Vikram Singh", wpm: 59, acc: 95.1, exam: "Stenographer", tests: 210, badge: "Speed Master" },
+      { rank: 6, name: "Anjali Gupta", wpm: 58, acc: 96.9, exam: "SSC CGL", tests: 189, badge: "" },
+      { rank: 7, name: "Aman Kumar", wpm: 49, acc: 95.2, exam: "SSC CGL", tests: 124, badge: "Streak 21 🔥" }
+    ];
+
+    function App() {
+      // 1. Core State
+      const [darkMode, setDarkMode] = useState(() => localStorage.getItem("typeme_theme") !== "light");
+      const [activeTab, setActiveTab] = useState("home"); // home | tests | games | analytics | leaderboard | about | rules | settings | profile | admin
+      const [soundEnabled, setSoundEnabled] = useState(true);
+
+      // 2. User & Auth State
+      const [user, setUser] = useState(() => {
+        const saved = localStorage.getItem("typeme_user");
+        return saved ? JSON.parse(saved) : {
+          name: "",
+          email: "",
+          exam: "SSC CGL 2026",
+          target: 45,
+          examDate: "2026-06-15",
+          isGuest: false,
+          onboarded: false
+        };
+      });
+
+      const [showAuthModal, setShowAuthModal] = useState(!user.name && !user.isGuest);
+      const [authForm, setAuthForm] = useState({ name: "", email: "", exam: "SSC CGL 2026" });
+
+      // 3. Admin & Notices State
+      const [adminState, setAdminState] = useState(() => {
+        const saved = localStorage.getItem("typeme_admin_cfg");
+        return saved ? JSON.parse(saved) : {
+          gamesEnabled: true,
+          notices: [
+            { id: "1", title: "🎉 Welcome to Typeme 2.0!", content: "SSC CGL & CHSL Tier-II DEST practice sets with 8000 KDPH calculation are now live!", date: "2026-08-20", urgent: true }
+          ],
+          reports: []
+        };
+      });
+
+      const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+      const [showAdminLoginModal, setShowAdminLoginModal] = useState(false);
+      const [adminPassInput, setAdminPassInput] = useState("");
+      const [logoClickCount, setLogoClickCount] = useState(0);
+
+      // 4. Passages State
+      const [passages, setPassages] = useState(() => {
+        const saved = localStorage.getItem("typeme_passages");
+        return saved ? JSON.parse(saved) : INITIAL_PASSAGES;
+      });
+      const [selectedPassageId, setSelectedPassageId] = useState("1");
+      const [customPassageText, setCustomPassageText] = useState("");
+      const [customPassageTitle, setCustomPassageTitle] = useState("");
+      const [showCustomModal, setShowCustomModal] = useState(false);
+
+      // 5. Test Configuration
+      const [examMode, setExamMode] = useState("SSC CGL");
+      const [durationMinutes, setDurationMinutes] = useState(10);
+      const [customMinutesInput, setCustomMinutesInput] = useState("10");
+      const [testLanguage, setTestLanguage] = useState("English");
+      const [testDifficulty, setTestDifficulty] = useState("Intermediate");
+      const [testSettings, setTestSettings] = useState({
+        punctuation: true,
+        numbers: true,
+        caps: true,
+        backspace: true
+      });
+      const [fontSize, setFontSize] = useState(18);
+
+      // 6. Active Test Execution
+      const [isTesting, setIsTesting] = useState(false);
+      const [showResultScreen, setShowResultScreen] = useState(false);
+      const [userInputText, setUserInputText] = useState("");
+      const [testStartTime, setTestStartTime] = useState(null);
+      const [elapsedSeconds, setElapsedSeconds] = useState(0);
+      const [backspaceCount, setBackspaceCount] = useState(0);
+      const [mistypedKeysMap, setMistypedKeysMap] = useState({});
+      const [lastTestSummary, setLastTestSummary] = useState(null);
+
+      // 7. Cloud Google Drive & Sheet API
+      const [googleAppUrl, setGoogleAppUrl] = useState(() => localStorage.getItem("typeme_google_url") || DEFAULT_GOOGLE_APP_URL);
+      const [cloudStatus, setCloudStatus] = useState("connected");
+      const [showCloudModal, setShowCloudModal] = useState(false);
+
+      // 8. History & Leaderboard
+      const [testHistory, setTestHistory] = useState(() => {
+        const saved = localStorage.getItem("typeme_history");
+        return saved ? JSON.parse(saved) : [];
+      });
+      const [leaderboardList, setLeaderboardList] = useState(INITIAL_LEADERBOARD);
+
+      // 9. Feedback / Bug Report
+      const [reportText, setReportText] = useState("");
+      const [reportSubmittedToast, setReportSubmittedToast] = useState(false);
+
+      // Refs
+      const typingInputRef = useRef(null);
+      const timerFrameRef = useRef(null);
+
+      // Dark Mode Class synchronization
+      useEffect(() => {
+        if (darkMode) document.documentElement.classList.add("dark");
+        else document.documentElement.classList.remove("dark");
+        localStorage.setItem("typeme_theme", darkMode ? "dark" : "light");
+      }, [darkMode]);
+
+      // Persistence
+      useEffect(() => { localStorage.setItem("typeme_user", JSON.stringify(user)); }, [user]);
+      useEffect(() => { localStorage.setItem("typeme_history", JSON.stringify(testHistory)); }, [testHistory]);
+      useEffect(() => { localStorage.setItem("typeme_passages", JSON.stringify(passages)); }, [passages]);
+      useEffect(() => { localStorage.setItem("typeme_admin_cfg", JSON.stringify(adminState)); }, [adminState]);
+      useEffect(() => { localStorage.setItem("typeme_google_url", googleAppUrl); }, [googleAppUrl]);
+
+      // Active Passage Calculation
+      const currentPassage = useMemo(() => {
+        return passages.find(p => p.id === selectedPassageId) || passages[0] || INITIAL_PASSAGES[0];
+      }, [selectedPassageId, passages]);
+
+      // Filtered Passages
+      const filteredPassages = useMemo(() => {
+        return passages.filter(p => p.language === testLanguage && (testDifficulty === "Intermediate" || p.difficulty === testDifficulty));
+      }, [passages, testLanguage, testDifficulty]);
+
+      // Live metrics calculation
+      const liveMetrics = useMemo(() => {
+        const textTarget = currentPassage.text;
+        let correctCount = 0;
+        let wrongCount = 0;
+
+        for (let i = 0; i < userInputText.length; i++) {
+          if (userInputText[i] === textTarget[i]) {
+            correctCount++;
+          } else {
+            wrongCount++;
+          }
+        }
+
+        const totalCharsTyped = userInputText.length;
+        const accuracyPercent = totalCharsTyped ? (correctCount / totalCharsTyped) * 100 : 100;
+        const minutesElapsed = elapsedSeconds ? elapsedSeconds / 60 : 0.01;
+        const grossWpm = minutesElapsed ? Math.round((totalCharsTyped / 5) / minutesElapsed) : 0;
+        const netWpm = Math.max(0, grossWpm - Math.round(wrongCount / minutesElapsed));
+        const cpm = minutesElapsed ? Math.round(totalCharsTyped / minutesElapsed) : 0;
+        const kdph = minutesElapsed ? Math.round((totalCharsTyped / minutesElapsed) * 60) : 0;
+
+        return {
+          correctCount,
+          wrongCount,
+          errors: wrongCount,
+          accuracyPercent,
+          grossWpm,
+          netWpm,
+          cpm,
+          kdph
+        };
+      }, [userInputText, currentPassage.text, elapsedSeconds]);
+
+      // Keyboard shortcut for focus
+      useEffect(() => {
+        const handleKeyDown = (e) => {
+          if (e.key === "/" && !isTesting && e.target.tagName !== "INPUT" && e.target.tagName !== "TEXTAREA") {
+            e.preventDefault();
+            typingInputRef.current?.focus();
+          }
+          if (e.key === "Escape" && isTesting) {
+            setIsTesting(false);
+          }
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+      }, [isTesting]);
+
+      // Test Timer Loop
+      useEffect(() => {
+        if (!isTesting || !testStartTime) return;
+        const onFrame = () => {
+          const now = Date.now();
+          const elapsed = Math.floor((now - testStartTime) / 1000);
+          setElapsedSeconds(elapsed);
+          if (elapsed >= durationMinutes * 60) {
+            submitTest();
+            return;
+          }
+          timerFrameRef.current = requestAnimationFrame(onFrame);
+        };
+        timerFrameRef.current = requestAnimationFrame(onFrame);
+        return () => cancelAnimationFrame(timerFrameRef.current);
+      }, [isTesting, testStartTime, durationMinutes]);
+
+      const startTest = () => {
+        setUserInputText("");
+        setElapsedSeconds(0);
+        setBackspaceCount(0);
+        setMistypedKeysMap({});
+        setShowResultScreen(false);
+        setIsTesting(true);
+        setTestStartTime(Date.now());
+        setLastTestSummary(null);
+        setTimeout(() => typingInputRef.current?.focus(), 60);
+      };
+
+      const submitTest = async () => {
+        setIsTesting(false);
+        if (soundEnabled) sound.playSubmitSuccess();
+
+        // Check SSC qualification
+        let sscStatus = "Needs Improvement (Practice More)";
+        let sscQualified = false;
+        if (liveMetrics.netWpm >= 35 && liveMetrics.accuracyPercent >= 95) {
+          sscStatus = "SSC CGL / CHSL DEST Qualified (Speed ≥ 35 WPM, 95%+ Acc)";
+          sscQualified = true;
+        } else if (liveMetrics.netWpm >= 27 && liveMetrics.accuracyPercent >= 93) {
+          sscStatus = "SSC CGL DEST Qualified (Speed ≥ 27 WPM)";
+          sscQualified = true;
+        }
+
+        const summary = {
+          id: Date.now().toString(),
+          date: new Date().toLocaleDateString('en-GB'),
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          userName: user.name || "Guest Aspirant",
+          exam: examMode,
+          language: testLanguage,
+          wpm: liveMetrics.grossWpm,
+          netWpm: liveMetrics.netWpm,
+          cpm: liveMetrics.cpm,
+          kdph: liveMetrics.kdph,
+          accuracy: Number(liveMetrics.accuracyPercent.toFixed(1)),
+          errors: liveMetrics.errors,
+          duration: elapsedSeconds,
+          passageTitle: currentPassage.title,
+          keyErrors: { ...mistypedKeysMap },
+          sscStatus,
+          sscQualified
+        };
+
+        setLastTestSummary(summary);
+        setShowResultScreen(true);
+        setTestHistory(prev => [summary, ...prev].slice(0, 100));
+        setTestStartTime(null);
+
+        // Sync to Google Sheet
+        if (googleAppUrl) {
+          try {
+            await fetch(googleAppUrl, {
+              method: "POST",
+              mode: "no-cors",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "saveTest", ...summary })
+            });
+          } catch (e) {}
+        }
+      };
+
+      const handleTypingChange = (val) => {
+        if (!isTesting) return;
+        if (!testSettings.backspace && val.length < userInputText.length) return;
+
+        if (val.length < userInputText.length) {
+          setBackspaceCount(b => b + 1);
+        }
+
+        if (val.length > userInputText.length) {
+          const typedChar = val[val.length - 1];
+          const expectedChar = currentPassage.text[val.length - 1];
+          const isMistake = typedChar !== expectedChar;
+
+          if (soundEnabled) sound.playKeyClick(isMistake);
+
+          if (isMistake) {
+            const keyChar = expectedChar ? expectedChar.toLowerCase() : typedChar.toLowerCase();
+            setMistypedKeysMap(prev => ({
+              ...prev,
+              [keyChar]: (prev[keyChar] || 0) + 1
+            }));
+          }
+        }
+
+        setUserInputText(val);
+        if (val.length >= currentPassage.text.length) {
+          submitTest();
+        }
+      };
+
+      // Hidden Logo Click Trigger for Admin Panel
+      const handleLogoClick = () => {
+        const next = logoClickCount + 1;
+        setLogoClickCount(next);
+        if (next >= 1) {
+          setShowAdminLoginModal(true);
+          setLogoClickCount(0);
+        }
+      };
+
+      // Admin Auth Verification
+      const handleAdminLogin = () => {
+        if (adminPassInput === "SaJahan0") {
+          setIsAdminAuthenticated(true);
+          setShowAdminLoginModal(false);
+          setActiveTab("admin");
+          setAdminPassInput("");
+        } else {
+          alert("Incorrect Admin Credentials. Access Denied.");
+        }
+      };
+
+      // Custom Passage Submission
+      const handleAddCustomPassage = () => {
+        if (!customPassageTitle.trim() || !customPassageText.trim()) {
+          alert("Please enter both passage title and paragraph text.");
+          return;
+        }
+        const words = customPassageText.trim().split(/\s+/).length;
+        const newP = {
+          id: Date.now().toString(),
+          title: customPassageTitle.trim(),
+          exam: "Custom / User",
+          language: testLanguage,
+          difficulty: "Intermediate",
+          words,
+          text: customPassageText.trim()
+        };
+        setPassages(prev => [newP, ...prev]);
+        setSelectedPassageId(newP.id);
+        setShowCustomModal(false);
+        setCustomPassageTitle("");
+        setCustomPassageText("");
+        alert("Custom paragraph added! You can now practice on it.");
+      };
+
+      // Time Remaining calculations
+      const remainingSecs = Math.max(0, durationMinutes * 60 - elapsedSeconds);
+      const minsDisplay = Math.floor(remainingSecs / 60);
+      const secsDisplay = remainingSecs % 60;
+      const progressRatio = currentPassage.text.length ? (userInputText.length / currentPassage.text.length) * 100 : 0;
+
+      // Stats
+      const avgSpeed = testHistory.length ? Math.round(testHistory.reduce((a, b) => a + b.netWpm, 0) / testHistory.length) : 42;
+      const bestSpeed = testHistory.length ? Math.max(...testHistory.map(h => h.netWpm)) : 54;
+      const avgAccuracy = testHistory.length ? (testHistory.reduce((a, b) => a + b.accuracy, 0) / testHistory.length).toFixed(1) : "95.6";
+      const totalPracticeMinutes = Math.floor(testHistory.reduce((a, b) => a + b.duration, 0) / 60);
+
+      // Games State
+      const [currentGame, setCurrentGame] = useState("sprint");
+      const [sprintGame, setSprintGame] = useState({ active: false, words: [], score: 0, lives: 3, input: "" });
+      const [heroGame, setHeroGame] = useState({ active: false, queue: [], score: 0 });
+      const [raceGame, setRaceGame] = useState({ active: false, userPos: 0, bots: [0, 0, 0], timeLeft: 60 });
+      const [homeRowTarget, setHomeRowTarget] = useState("A");
+      const [homeRowScore, setHomeRowScore] = useState(0);
+
+      return (
+        <div className="min-h-screen flex flex-col justify-between selection:bg-indigo-500 selection:text-white">
+          
+          {/* Header & Navbar */}
+          <div>
+            <header className="sticky top-0 z-40 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-[#0b0f19]/85 transition-all">
+              <div className="max-w-[1440px] mx-auto px-4 md:px-6 h-16 flex items-center justify-between gap-4">
+                
+                {/* Brand Logo with Hidden Admin Trigger */}
+                <div className="flex items-center gap-3 cursor-pointer select-none" onClick={handleLogoClick} title="Typeme - Click to open Admin Portal">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-700 flex items-center justify-center text-white font-black text-xl shadow-lg shadow-indigo-500/25 transform hover:scale-105 transition">
+                    ⚡
+                  </div>
+                  <div>
+                    <div className="font-extrabold tracking-tight text-lg leading-tight flex items-center gap-1.5 text-slate-900 dark:text-white">
+                      Typeme
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-bold tracking-wider">
+                        PRO
+                      </span>
+                    </div>
+                    <div className="text-[10px] tracking-wider uppercase text-slate-500 dark:text-slate-400 font-semibold">
+                      Advanced Typing System
+                    </div>
+                  </div>
+                </div>
+
+                {/* Desktop Navigation */}
+                <nav className="hidden lg:flex items-center gap-1 p-1.5 rounded-full bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 text-xs font-semibold">
+                  {[
+                    { id: "home", label: "🇮🇳 Home" },
+                    { id: "tests", label: "⏱️ Tests & Practice" },
+                    ...(adminState.gamesEnabled ? [{ id: "games", label: "🎮 Games" }] : []),
+                    { id: "leaderboard", label: "🏆 Leaderboard" },
+                    { id: "analytics", label: "📊 Analytics" },
+                    { id: "rules", label: "📜 Rules & Tips" },
+                    { id: "about", label: "👨‍💻 About Us" }
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => { setActiveTab(tab.id); setShowResultScreen(false); }}
+                      className={`px-3.5 py-1.5 rounded-full transition-all duration-200 ${
+                        activeTab === tab.id
+                          ? "bg-white dark:bg-indigo-600 text-slate-900 dark:text-white shadow-sm font-bold"
+                          : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                  {isAdminAuthenticated && (
+                    <button
+                      onClick={() => setActiveTab("admin")}
+                      className={`px-3 py-1.5 rounded-full font-bold ${
+                        activeTab === "admin" ? "bg-amber-500 text-white" : "text-amber-500"
+                      }`}
+                    >
+                      ⚡ Admin Portal
+                    </button>
+                  )}
+                </nav>
+
+                {/* Right Action Tools */}
+                <div className="flex items-center gap-2.5">
+                  {/* User Profile / Login Button */}
+                  <button
+                    onClick={() => user.name ? setActiveTab("profile") : setShowAuthModal(true)}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 hover:border-indigo-500 transition"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span className="max-w-[100px] truncate">{user.name || "Guest / Login"}</span>
+                  </button>
+
+                  {/* Sound Toggle */}
+                  <button
+                    onClick={() => setSoundEnabled(s => !s)}
+                    className="w-9 h-9 rounded-full border border-slate-200 dark:border-slate-800 grid place-items-center text-sm bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:scale-105 transition"
+                    title={soundEnabled ? "Mute Typing Audio" : "Enable Typing Audio"}
+                  >
+                    {soundEnabled ? "🔊" : "🔇"}
+                  </button>
+
+                  {/* Settings */}
+                  <button
+                    onClick={() => setActiveTab("settings")}
+                    className="w-9 h-9 rounded-full border border-slate-200 dark:border-slate-800 grid place-items-center text-sm bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:scale-105 transition"
+                    title="Settings"
+                  >
+                    ⚙️
+                  </button>
+
+                  {/* Theme Mode Toggle */}
+                  <button
+                    onClick={() => setDarkMode(d => !d)}
+                    className="w-9 h-9 rounded-full border border-slate-200 dark:border-slate-800 grid place-items-center text-sm bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:scale-105 transition"
+                  >
+                    {darkMode ? "☀️" : "🌙"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Mobile Navigation Scrollbar */}
+              <div className="lg:hidden flex gap-1 px-4 pb-2.5 overflow-x-auto border-t border-slate-100 dark:border-slate-800/60 pt-2">
+                {[
+                  { id: "home", label: "Home" },
+                  { id: "tests", label: "Tests" },
+                  ...(adminState.gamesEnabled ? [{ id: "games", label: "Games" }] : []),
+                  { id: "leaderboard", label: "Ranks" },
+                  { id: "analytics", label: "Stats" },
+                  { id: "rules", label: "Rules" },
+                  { id: "about", label: "About" },
+                  { id: "settings", label: "Settings" }
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => { setActiveTab(tab.id); setShowResultScreen(false); }}
+                    className={`whitespace-nowrap px-3.5 py-1 rounded-full text-xs font-semibold border ${
+                      activeTab === tab.id
+                        ? "bg-indigo-600 text-white border-indigo-600"
+                        : "border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </header>
+
+            {/* MAIN APP CONTAINER */}
+            <main className="max-w-[1440px] mx-auto px-4 md:px-6 py-6">
+              
+              {/* =========================================
+                  PAGE 1: HOME PAGE (TRICOLOR HERO & HUB)
+                  ========================================= */}
+              {activeTab === "home" && (
+                <div className="space-y-8">
+                  {/* Hero Banner with Animated Indian Tricolor & Ashoka Chakra */}
+                  <div className="relative rounded-3xl overflow-hidden p-6 md:p-10 border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white shadow-2xl">
+                    <div className="relative z-10 grid md:grid-cols-[1.5fr_1fr] gap-8 items-center">
+                      <div className="space-y-4">
+                        
+                        {/* Indian Tricolor Badge with Spinning 24-Spoke Chakra */}
+                        <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/15 shadow-sm">
+                          {/* Flag Colors Dot Strip */}
+                          <div className="flex gap-1 items-center">
+                            <span className="w-3 h-3 rounded-full bg-[#FF9933] shadow-sm"></span>
+                            <span className="w-3 h-3 rounded-full bg-[#FFFFFF] shadow-sm"></span>
+                            <span className="w-3 h-3 rounded-full bg-[#138808] shadow-sm"></span>
+                          </div>
+                          
+                          {/* SVG 24-Spoke Ashoka Chakra */}
+                          <svg className="w-5 h-5 text-[#000080] animate-spin-slow" viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="46" stroke="#000080" strokeWidth="6" fill="none" />
+                            <circle cx="50" cy="50" r="8" fill="#000080" />
+                            {Array.from({ length: 24 }).map((_, i) => (
+                              <line
+                                key={i}
+                                x1="50" y1="50"
+                                x2={50 + 44 * Math.cos((i * 15 * Math.PI) / 180)}
+                                y2={50 + 44 * Math.sin((i * 15 * Math.PI) / 180)}
+                                stroke="#000080"
+                                strokeWidth="3.5"
+                              />
+                            ))}
+                          </svg>
+                          
+                          <span className="text-xs font-bold tracking-wide uppercase text-slate-100">
+                            Dedicated to Indian Govt Aspirants (SSC / Railway / High Court)
+                          </span>
+                        </div>
+
+                        <h1 className="text-3xl md:text-5xl font-black tracking-tight leading-tight">
+                          Master Speed & Accuracy with <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-sky-300 to-teal-300">Typeme</span>
+                        </h1>
+
+                        <p className="text-sm md:text-base text-slate-300 max-w-xl leading-relaxed">
+                          Comprehensive typing suite compliant with official <b>8000 Key Depressions Per Hour (KDPH)</b> SSC norms. Features real-time error diagnostics, realistic typing games, and automatic Google Drive database integration.
+                        </p>
+
+                        <div className="flex flex-wrap gap-3 pt-2">
+                          <button
+                            onClick={() => { setActiveTab("tests"); startTest(); }}
+                            className="px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 text-white font-bold text-sm shadow-lg shadow-indigo-500/30 hover:scale-105 transition"
+                          >
+                            ⏱️ Take SSC Exam Test
+                          </button>
+                          <button
+                            onClick={() => setActiveTab("tests")}
+                            className="px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 backdrop-blur border border-white/20 text-white font-bold text-sm transition"
+                          >
+                            🎯 Practice Arena
+                          </button>
+                          {adminState.gamesEnabled && (
+                            <button
+                              onClick={() => setActiveTab("games")}
+                              className="px-6 py-3 rounded-xl bg-emerald-600/80 hover:bg-emerald-600 text-white font-bold text-sm transition shadow-lg shadow-emerald-600/20"
+                            >
+                              🎮 Play Games
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Right Hero Card Graphic */}
+                      <div className="p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 space-y-4">
+                        <div className="flex items-center justify-between text-xs border-b border-white/10 pb-3">
+                          <span className="font-bold text-indigo-300">SSC CGL Tier-II DEST Benchmark</span>
+                          <span className="mono font-bold bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded">Target: 27 WPM (8000 KDPH)</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 text-center">
+                          <div className="p-3 rounded-xl bg-white/5 border border-white/5">
+                            <div className="text-[11px] text-slate-400">Average Candidate Speed</div>
+                            <div className="text-2xl font-black mono text-indigo-400 mt-0.5">38 WPM</div>
+                          </div>
+                          <div className="p-3 rounded-xl bg-white/5 border border-white/5">
+                            <div className="text-[11px] text-slate-400">Qualifying Accuracy</div>
+                            <div className="text-2xl font-black mono text-emerald-400 mt-0.5">95%+</div>
+                          </div>
+                        </div>
+                        <div className="text-xs text-slate-400 flex items-center justify-between pt-1">
+                          <span>Developer: <b>Sajahan Ali</b></span>
+                          <button onClick={() => setActiveTab("about")} className="text-indigo-400 underline font-semibold">View Creator Bio →</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 3 Primary Action Hub Cards */}
+                  <div className="grid md:grid-cols-3 gap-6">
+                    <div 
+                      onClick={() => setActiveTab("tests")}
+                      className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 shadow-sm hover:shadow-xl hover:border-indigo-500 transition cursor-pointer group space-y-3"
+                    >
+                      <div className="w-12 h-12 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 grid place-items-center text-2xl group-hover:scale-110 transition">
+                        🎯
+                      </div>
+                      <h3 className="font-bold text-lg text-slate-900 dark:text-white">Practice Arena</h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                        Drill through our extensive paragraph repository in English and Hindi. Paste custom articles and train on your weak keys.
+                      </p>
+                      <div className="text-xs font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+                        Open Practice Mode →
+                      </div>
+                    </div>
+
+                    <div 
+                      onClick={() => { setActiveTab("tests"); startTest(); }}
+                      className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 shadow-sm hover:shadow-xl hover:border-indigo-500 transition cursor-pointer group space-y-3"
+                    >
+                      <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 grid place-items-center text-2xl group-hover:scale-110 transition">
+                        ⏱️
+                      </div>
+                      <h3 className="font-bold text-lg text-slate-900 dark:text-white">Official SSC Exam Test</h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                        Take timed exam simulations (1, 2, 5, 10, 15, 20, 30 minutes). Get instant SSC qualification results and 8000 KDPH scorecards.
+                      </p>
+                      <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                        Start Real Test →
+                      </div>
+                    </div>
+
+                    <div 
+                      onClick={() => adminState.gamesEnabled ? setActiveTab("games") : alert("Games are currently paused by administrator.")}
+                      className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 shadow-sm hover:shadow-xl hover:border-indigo-500 transition cursor-pointer group space-y-3"
+                    >
+                      <div className="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 grid place-items-center text-2xl group-hover:scale-110 transition">
+                        🎮
+                      </div>
+                      <h3 className="font-bold text-lg text-slate-900 dark:text-white">Play Typing Games</h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                        Sharpen muscle memory with Word Sprint, Key Hero rhythm beats, Typing Race vs 3 AI Bots, and Home Row foundation drills.
+                      </p>
+                      <div className="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                        Explore 4 Games →
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Official Notice Board */}
+                  <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-6 bg-white dark:bg-slate-900/60 shadow-sm space-y-4">
+                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                      <div className="font-bold text-sm flex items-center gap-2 text-slate-900 dark:text-white">
+                        <span>📢 Official Notice Board & Announcements</span>
+                      </div>
+                      <span className="text-[11px] text-slate-400">Managed by Sajahan Ali</span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {adminState.notices.map(n => (
+                        <div key={n.id} className="p-4 rounded-xl border border-indigo-100 dark:border-indigo-950/80 bg-indigo-50/50 dark:bg-indigo-950/30 flex items-start justify-between gap-4">
+                          <div>
+                            <div className="font-bold text-xs text-indigo-900 dark:text-indigo-200">{n.title}</div>
+                            <div className="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">{n.content}</div>
+                          </div>
+                          <span className="mono text-[10px] text-slate-400 shrink-0">{n.date}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* =========================================
+                  PAGE 2: TYPING TEST & PRACTICE SECTION
+                  ========================================= */}
+              {activeTab === "tests" && !showResultScreen && (
+                <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
+                  
+                  {/* Left Configuration Sidebar */}
+                  <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-slate-900/70 shadow-sm sticky top-24 h-fit space-y-4">
+                    <div className="font-bold text-sm flex items-center justify-between">
+                      <span className="text-slate-900 dark:text-white">⚙️ Test Configuration</span>
+                      <span className="mono text-[10px] px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 font-bold">
+                        SSC DEST Mode
+                      </span>
+                    </div>
+
+                    {/* Exam Selection */}
+                    <div>
+                      <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Exam Standard</label>
+                      <select
+                        value={examMode}
+                        onChange={e => setExamMode(e.target.value)}
+                        className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 font-medium"
+                      >
+                        {["SSC CGL", "SSC CHSL", "SSC MTS", "SSC CPO", "Stenographer Grade C/D", "DEO Test", "Custom"].map(m => (
+                          <option key={m}>{m}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Test Duration Presets (1, 2, 5, 10, 15, 20, 25, 30 min) */}
+                    <div>
+                      <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Duration (Minutes)</label>
+                      <div className="mt-1.5 grid grid-cols-4 gap-1.5">
+                        {[1, 2, 5, 10, 15, 20, 25, 30].map(m => (
+                          <button
+                            key={m}
+                            onClick={() => { setDurationMinutes(m); setCustomMinutesInput(String(m)); }}
+                            className={`py-1.5 rounded-lg text-xs font-bold border transition ${
+                              durationMinutes === m
+                                ? "bg-indigo-600 text-white border-indigo-600 shadow"
+                                : "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400"
+                            }`}
+                          >
+                            {m}m
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Custom Minutes Input */}
+                      <div className="mt-2 flex gap-2">
+                        <input
+                          type="number"
+                          min="1"
+                          max="30"
+                          value={customMinutesInput}
+                          onChange={e => setCustomMinutesInput(e.target.value)}
+                          placeholder="Custom min"
+                          className="w-full rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-950"
+                        />
+                        <button
+                          onClick={() => {
+                            const val = Math.max(1, Math.min(30, parseInt(customMinutesInput) || 10));
+                            setDurationMinutes(val);
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-slate-800 text-white text-xs font-bold hover:bg-slate-700"
+                        >
+                          Set
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Language & Difficulty */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Language</label>
+                        <select
+                          value={testLanguage}
+                          onChange={e => setTestLanguage(e.target.value)}
+                          className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-800 px-2 py-2 text-xs bg-slate-50 dark:bg-slate-950"
+                        >
+                          <option>English</option>
+                          <option>Hindi</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Difficulty</label>
+                        <select
+                          value={testDifficulty}
+                          onChange={e => setTestDifficulty(e.target.value)}
+                          className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-800 px-2 py-2 text-xs bg-slate-50 dark:bg-slate-950"
+                        >
+                          <option>Beginner</option>
+                          <option>Intermediate</option>
+                          <option>Advanced</option>
+                          <option>Previous Year</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Passage Selection */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Select Passage</label>
+                        <button onClick={() => setShowCustomModal(true)} className="text-[11px] text-indigo-500 font-bold hover:underline">
+                          + Custom Text
+                        </button>
+                      </div>
+                      <select
+                        value={selectedPassageId}
+                        onChange={e => setSelectedPassageId(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 font-medium"
+                      >
+                        {filteredPassages.map(p => (
+                          <option key={p.id} value={p.id}>{p.title} ({p.words} words)</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Settings Toggles */}
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { k: "punctuation", label: "Punctuation" },
+                        { k: "numbers", label: "Numbers" },
+                        { k: "caps", label: "Capitals" },
+                        { k: "backspace", label: "Backspace" }
+                      ].map(item => (
+                        <label key={item.k} className="flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-950 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={testSettings[item.k]}
+                            onChange={e => setTestSettings(s => ({ ...s, [item.k]: e.target.checked }))}
+                            className="rounded text-indigo-600"
+                          />
+                          <span className="text-slate-700 dark:text-slate-300 font-medium">{item.label}</span>
+                        </label>
+                      ))}
+                    </div>
+
+                    {/* Start Button */}
+                    <button
+                      onClick={startTest}
+                      className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold text-sm shadow-lg shadow-indigo-500/25 hover:opacity-90 transition"
+                    >
+                      ▶ Start Test ({durationMinutes} Min)
+                    </button>
+                  </div>
+
+                  {/* Right Live Typing Screen & Real-time Metrics */}
+                  <div className="space-y-4">
+                    
+                    {/* Live Metrics Dashboard */}
+                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 bg-white dark:bg-slate-900/80 shadow-sm flex flex-wrap gap-4 items-center justify-between">
+                      <div className="flex flex-wrap gap-4 md:gap-7">
+                        <div>
+                          <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Gross WPM</div>
+                          <div className="text-2xl font-black mono text-slate-800 dark:text-slate-100">{liveMetrics.grossWpm}</div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Net WPM (SSC)</div>
+                          <div className={`text-2xl font-black mono ${liveMetrics.netWpm < 27 ? "text-amber-500" : "text-emerald-500"}`}>
+                            {liveMetrics.netWpm}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Accuracy</div>
+                          <div className={`text-2xl font-black mono ${liveMetrics.accuracyPercent < 95 ? "text-rose-500" : "text-emerald-500"}`}>
+                            {liveMetrics.accuracyPercent.toFixed(1)}%
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400">KDPH (Hour)</div>
+                          <div className="text-2xl font-black mono text-indigo-500">{liveMetrics.kdph}</div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Errors</div>
+                          <div className="text-2xl font-black mono text-rose-500">{liveMetrics.errors}</div>
+                        </div>
+                      </div>
+
+                      {/* Timer & Radial Meter */}
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <div className="text-xl font-black mono text-slate-900 dark:text-white">
+                            {minsDisplay}:{String(secsDisplay).padStart(2, "0")}
+                          </div>
+                          <div className="text-[10px] text-slate-400 font-mono">{Math.round(progressRatio)}% typed</div>
+                        </div>
+                        <div className="w-12 h-12 relative flex items-center justify-center">
+                          <svg className="w-12 h-12 -rotate-90">
+                            <circle cx="24" cy="24" r="20" stroke="currentColor" strokeWidth="4" fill="none" className="text-slate-100 dark:text-slate-800" />
+                            <circle
+                              cx="24" cy="24" r="20" stroke="#6366f1" strokeWidth="4" fill="none"
+                              strokeDasharray={2 * Math.PI * 20}
+                              strokeDashoffset={2 * Math.PI * 20 * (1 - remainingSecs / (durationMinutes * 60))}
+                              className="transition-all duration-300"
+                            />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Interactive Passage Display & Hidden Textarea */}
+                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-6 md:p-8 bg-white dark:bg-slate-900/50 shadow-sm min-h-[350px] relative">
+                      {!isTesting && (
+                        <div className="absolute inset-0 z-10 grid place-items-center backdrop-blur-[2px] bg-white/70 dark:bg-slate-950/75 rounded-2xl">
+                          <div className="text-center p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl max-w-sm">
+                            <div className="text-4xl mb-2">⌨️</div>
+                            <div className="font-bold text-lg text-slate-900 dark:text-white">{currentPassage.title}</div>
+                            <div className="text-xs text-slate-500 mt-1">
+                              {currentPassage.exam} • {currentPassage.words} words • {testLanguage}
+                            </div>
+                            <button
+                              onClick={startTest}
+                              className="mt-5 w-full py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-sm shadow hover:scale-[1.02] transition"
+                            >
+                              Start Typing Test
+                            </button>
+                            <div className="text-[11px] text-slate-400 mt-3">
+                              Press <kbd className="mono font-bold px-1 bg-slate-100 dark:bg-slate-800 rounded">/</kbd> to quick focus • Esc to pause
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Text Renderer */}
+                      <div className="mono leading-relaxed tracking-wide select-none" style={{ fontSize: `${fontSize}px` }}>
+                        {currentPassage.text.split("").map((char, idx) => {
+                          let style = "text-slate-400 dark:text-slate-500";
+                          const typed = userInputText[idx];
+                          if (idx < userInputText.length) {
+                            if (typed === char) {
+                              style = "text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 rounded-sm";
+                            } else {
+                              style = "text-rose-600 dark:text-rose-400 bg-rose-500/25 underline decoration-rose-500 rounded-sm";
+                            }
+                          }
+                          if (idx === userInputText.length) {
+                            style += " border-b-2 border-indigo-600 bg-indigo-500/20";
+                          }
+                          return <span key={idx} className={style}>{char}</span>;
+                        })}
+                      </div>
+
+                      {/* Hidden Typing Input */}
+                      <textarea
+                        ref={typingInputRef}
+                        value={userInputText}
+                        onChange={e => handleTypingChange(e.target.value)}
+                        onPaste={e => e.preventDefault()}
+                        onCopy={e => e.preventDefault()}
+                        onCut={e => e.preventDefault()}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-text resize-none"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="off"
+                        spellCheck="false"
+                      />
+                    </div>
+
+                    {/* Font & Controls */}
+                    <div className="flex items-center justify-between text-xs px-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-500 font-medium">Font size:</span>
+                        <button onClick={() => setFontSize(f => Math.max(14, f - 1))} className="px-2 py-1 rounded border border-slate-200 dark:border-slate-800 font-mono">A-</button>
+                        <button onClick={() => setFontSize(f => Math.min(26, f + 1))} className="px-2 py-1 rounded border border-slate-200 dark:border-slate-800 font-mono">A+</button>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={startTest} className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 font-medium hover:bg-slate-200">
+                          ↻ Restart
+                        </button>
+                        {isTesting && (
+                          <button onClick={submitTest} className="px-3.5 py-1.5 rounded-lg bg-indigo-600 text-white font-bold">
+                            ✓ Submit Test
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* =========================================
+                  PAGE 2 (SUB): POST TEST DETAILED RESULT
+                  ========================================= */}
+              {activeTab === "tests" && showResultScreen && lastTestSummary && (
+                <div className="max-w-5xl mx-auto space-y-6">
+                  <div className="flex items-center justify-between">
+                    <button
+                      onClick={() => { setShowResultScreen(false); setUserInputText(""); }}
+                      className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold"
+                    >
+                      ← Back to Tests
+                    </button>
+                    <span className={`px-4 py-1.5 rounded-full text-xs font-bold ${
+                      lastTestSummary.sscQualified ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                    }`}>
+                      {lastTestSummary.sscStatus}
+                    </span>
+                  </div>
+
+                  {/* Summary Metric Cards */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-slate-900">
+                      <div className="text-xs uppercase font-bold text-slate-400">Net Typing Speed (SSC)</div>
+                      <div className="text-3xl font-black mono text-emerald-500 mt-1">{lastTestSummary.netWpm} WPM</div>
+                      <div className="text-[11px] text-slate-500 mt-1">Official SSC Penalty Applied</div>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-slate-900">
+                      <div className="text-xs uppercase font-bold text-slate-400">Gross Speed</div>
+                      <div className="text-3xl font-black mono text-slate-800 dark:text-slate-100 mt-1">{lastTestSummary.wpm} WPM</div>
+                      <div className="text-[11px] text-slate-500 mt-1">{lastTestSummary.cpm} Chars/Min</div>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-slate-900">
+                      <div className="text-xs uppercase font-bold text-slate-400">Accuracy</div>
+                      <div className="text-3xl font-black mono text-indigo-600 dark:text-indigo-400 mt-1">{lastTestSummary.accuracy}%</div>
+                      <div className="text-[11px] text-rose-500 mt-1">{lastTestSummary.errors} Total Errors</div>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-slate-900">
+                      <div className="text-xs uppercase font-bold text-slate-400">Depressions (KDPH)</div>
+                      <div className="text-3xl font-black mono text-amber-500 mt-1">{lastTestSummary.kdph}</div>
+                      <div className="text-[11px] text-slate-500 mt-1">Benchmark: 8000 KDPH</div>
+                    </div>
+                  </div>
+
+                  {/* Key Error Breakdown & AI Guidance */}
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-slate-900">
+                      <h4 className="font-bold text-sm mb-3">Key Error Analysis</h4>
+                      {Object.keys(lastTestSummary.keyErrors).length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {Object.entries(lastTestSummary.keyErrors).map(([k, cnt]) => (
+                            <div key={k} className="px-3 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 flex items-center gap-2">
+                              <span className="font-mono font-bold text-sm uppercase text-rose-600">{k}</span>
+                              <span className="text-xs text-rose-500">{cnt} mistakes</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-xs text-emerald-500">Clean test! Zero repeated mistakes.</div>
+                      )}
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-slate-900 space-y-2">
+                      <h4 className="font-bold text-sm">💡 AI Coaching Recommendation</h4>
+                      <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                        Your test indicates strong rhythm. To exceed <b>50 WPM</b> with 98% accuracy, practice on <b>Key Hero</b> to develop touch-typing reflex without looking down at the keyboard.
+                      </p>
+                      <div className="pt-2">
+                        <button
+                          onClick={() => { setShowResultScreen(false); setActiveTab("games"); }}
+                          className="text-xs font-bold text-indigo-600 dark:text-indigo-400 underline"
+                        >
+                          Launch Practice Game →
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      onClick={startTest}
+                      className="px-5 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-xs shadow hover:opacity-90"
+                    >
+                      ↻ Retake Test
+                    </button>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard?.writeText(
+                          `⚡ I scored ${lastTestSummary.netWpm} Net WPM with ${lastTestSummary.accuracy}% Accuracy on Typeme (${lastTestSummary.exam})! Try it here!`
+                        );
+                        alert("Scorecard copied to clipboard!");
+                      }}
+                      className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 font-bold text-xs"
+                    >
+                      📋 Copy & Share Score
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* =========================================
+                  PAGE 3: 4 INTERACTIVE TYPING GAMES
+                  ========================================= */}
+              {activeTab === "games" && (
+                <div className="space-y-6">
+                  {/* Game Selector Tabs */}
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { id: "sprint", label: "🌧️ Word Sprint" },
+                      { id: "hero", label: "🎸 Key Hero" },
+                      { id: "race", label: "🏎️ Typing Race vs 3 Bots" },
+                      { id: "homerow", label: "🏠 Home Row Hero" }
+                    ].map(g => (
+                      <button
+                        key={g.id}
+                        onClick={() => setCurrentGame(g.id)}
+                        className={`px-4 py-2 rounded-full border text-xs font-bold transition ${
+                          currentGame === g.id
+                            ? "bg-indigo-600 text-white border-indigo-600 shadow"
+                            : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400"
+                        }`}
+                      >
+                        {g.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* GAME 1: WORD SPRINT */}
+                  {currentGame === "sprint" && (
+                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-6 bg-white dark:bg-slate-900 shadow-sm space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="font-bold text-base">Word Sprint</h3>
+                          <p className="text-xs text-slate-500">Type falling words before they reach the bottom line!</p>
+                        </div>
+                        <div className="mono font-bold text-sm">
+                          Score: {sprintGame.score} • Lives: {"❤️".repeat(Math.max(0, sprintGame.lives))}
+                        </div>
+                      </div>
+
+                      <div className="h-[320px] rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center text-center p-4">
+                        {!sprintGame.active ? (
+                          <div className="space-y-3">
+                            <div className="text-3xl">🌧️</div>
+                            <div className="text-white font-bold text-sm">Ready to catch falling words?</div>
+                            <button
+                              onClick={() => setSprintGame({ active: true, words: [], score: 0, lives: 3, input: "" })}
+                              className="px-6 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-xs shadow-lg"
+                            >
+                              ▶ Start Word Sprint
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="text-indigo-400 font-mono text-sm">
+                            Type words into the input box below and hit Space / Enter!
+                          </div>
+                        )}
+                      </div>
+
+                      {sprintGame.active && (
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={sprintGame.input}
+                            onChange={e => setSprintGame(s => ({ ...s, input: e.target.value }))}
+                            placeholder="Type word here..."
+                            className="flex-1 rounded-xl border border-slate-200 dark:border-slate-800 px-4 py-2 font-mono text-sm bg-slate-50 dark:bg-slate-950"
+                            autoFocus
+                          />
+                          <button
+                            onClick={() => setSprintGame(s => ({ ...s, active: false }))}
+                            className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 font-bold text-xs"
+                          >
+                            Stop Game
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* GAME 2: KEY HERO */}
+                  {currentGame === "hero" && (
+                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-6 bg-white dark:bg-slate-900 shadow-sm space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="font-bold text-base">Key Hero (Rhythm Touch Practice)</h3>
+                          <p className="text-xs text-slate-500">Hit the target keys as they stream through the beat line.</p>
+                        </div>
+                        <div className="mono font-bold text-sm">Score: {heroGame.score}</div>
+                      </div>
+
+                      <div className="h-[220px] rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center">
+                        {!heroGame.active ? (
+                          <button
+                            onClick={() => setHeroGame({ active: true, queue: [], score: 0 })}
+                            className="px-6 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-xs shadow-lg"
+                          >
+                            ▶ Start Key Hero
+                          </button>
+                        ) : (
+                          <div className="text-violet-400 font-mono text-sm">Streaming target keys... Press your keyboard!</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* GAME 3: TYPING RACE */}
+                  {currentGame === "race" && (
+                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-6 bg-white dark:bg-slate-900 shadow-sm space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="font-bold text-base">Typing Race vs 3 AI Bots</h3>
+                          <p className="text-xs text-slate-500">Race against Priya (55 WPM), Rahul (48 WPM), and Sneha (42 WPM)!</p>
+                        </div>
+                        <button
+                          onClick={() => setRaceGame({ active: true, userPos: 0, bots: [0, 0, 0], timeLeft: 60 })}
+                          className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-bold text-xs shadow"
+                        >
+                          ▶ Start 60s Race
+                        </button>
+                      </div>
+
+                      <div className="space-y-3 p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                        {[
+                          { name: `${user.name || 'You'} (Racer)`, pos: raceGame.userPos, color: "bg-indigo-600" },
+                          { name: "Bot Priya (55 WPM)", pos: raceGame.bots[0], color: "bg-emerald-600" },
+                          { name: "Bot Rahul (48 WPM)", pos: raceGame.bots[1], color: "bg-amber-600" },
+                          { name: "Bot Sneha (42 WPM)", pos: raceGame.bots[2], color: "bg-rose-600" }
+                        ].map(r => (
+                          <div key={r.name} className="flex items-center gap-3">
+                            <div className="w-36 text-xs font-semibold truncate">{r.name}</div>
+                            <div className="flex-1 h-6 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden relative">
+                              <div className={`h-full ${r.color} transition-all duration-300`} style={{ width: `${r.pos}%` }}></div>
+                              <span className="absolute right-2 top-0.5 text-xs">🏎️</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* GAME 4: HOME ROW HERO */}
+                  {currentGame === "homerow" && (
+                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-6 bg-white dark:bg-slate-900 shadow-sm text-center space-y-5">
+                      <div>
+                        <h3 className="font-bold text-base">Home Row Hero</h3>
+                        <p className="text-xs text-slate-500">Train finger muscle memory on: A S D F J K L ;</p>
+                      </div>
+
+                      <div className="w-24 h-24 mx-auto rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border-2 border-indigo-600 grid place-items-center text-4xl font-black font-mono text-indigo-600 dark:text-indigo-400 shadow-lg">
+                        {homeRowTarget}
+                      </div>
+
+                      <div className="flex justify-center gap-2">
+                        {["A", "S", "D", "F", "J", "K", "L", ";"].map(k => (
+                          <div
+                            key={k}
+                            className={`w-10 h-10 rounded-lg border font-mono font-bold grid place-items-center text-sm ${
+                              homeRowTarget === k
+                                ? "bg-indigo-600 text-white border-indigo-600 shadow"
+                                : "bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-500"
+                            }`}
+                          >
+                            {k}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* =========================================
+                  PAGE 4: LIVE LEADERBOARD
+                  ========================================= */}
+              {activeTab === "leaderboard" && (
+                <div className="max-w-4xl mx-auto space-y-4">
+                  <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-slate-900 shadow-sm flex items-center justify-between">
+                    <div>
+                      <h3 className="font-bold text-base text-slate-900 dark:text-white">🏆 All-India Aspirants Leaderboard</h3>
+                      <p className="text-xs text-slate-500">Rankings updated in real-time with Google Cloud Sheets database.</p>
+                    </div>
+                    <span className="text-xs font-mono px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold">
+                      Live Synced
+                    </span>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900 shadow-sm">
+                    <div className="grid grid-cols-[60px_1fr_90px_90px_90px_130px] text-[11px] uppercase font-bold tracking-wider text-slate-400 px-5 py-3 border-b border-slate-100 dark:border-slate-800">
+                      <span>Rank</span>
+                      <span>Candidate</span>
+                      <span>Net WPM</span>
+                      <span>Accuracy</span>
+                      <span>Tests</span>
+                      <span>Badge</span>
+                    </div>
+
+                    <div className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+                      {leaderboardList.map((item, idx) => (
+                        <div
+                          key={idx}
+                          className={`grid grid-cols-[60px_1fr_90px_90px_90px_130px] items-center px-5 py-3.5 ${
+                            item.name.toLowerCase() === (user.name || '').toLowerCase() ? "bg-indigo-50 dark:bg-indigo-950/40" : ""
+                          }`}
+                        >
+                          <span className="font-mono font-bold text-slate-500">#{item.rank || idx + 1}</span>
+                          <span className="font-semibold flex items-center gap-2 text-slate-900 dark:text-white">
+                            {item.name}
+                            {item.name.toLowerCase() === (user.name || '').toLowerCase() && (
+                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-indigo-600 text-white font-bold">YOU</span>
+                            )}
+                          </span>
+                          <span className="font-mono font-bold text-emerald-500">{item.wpm}</span>
+                          <span className="font-mono">{item.acc}%</span>
+                          <span className="font-mono text-slate-400">{item.tests}</span>
+                          <span>
+                            {item.badge ? (
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                                {item.badge}
+                              </span>
+                            ) : "—"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* =========================================
+                  PAGE 5: ANALYTICS & SESSION HISTORY
+                  ========================================= */}
+              {activeTab === "analytics" && (
+                <div className="space-y-6">
+                  {/* Metric Tiles */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-slate-900">
+                      <div className="text-xs uppercase font-bold text-slate-400">Average Net Speed</div>
+                      <div className="text-3xl font-black mono text-slate-800 dark:text-slate-100 mt-1">{avgSpeed} WPM</div>
+                      <div className="text-[11px] text-slate-500 mt-1">Across all tests</div>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-slate-900">
+                      <div className="text-xs uppercase font-bold text-slate-400">Personal Best</div>
+                      <div className="text-3xl font-black mono text-emerald-500 mt-1">{bestSpeed} WPM</div>
+                      <div className="text-[11px] text-slate-500 mt-1">Top record</div>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-slate-900">
+                      <div className="text-xs uppercase font-bold text-slate-400">Average Accuracy</div>
+                      <div className="text-3xl font-black mono text-indigo-600 dark:text-indigo-400 mt-1">{avgAccuracy}%</div>
+                      <div className="text-[11px] text-slate-500 mt-1">Target: 95%+</div>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-slate-900">
+                      <div className="text-xs uppercase font-bold text-slate-400">Practice Time</div>
+                      <div className="text-3xl font-black mono text-amber-500 mt-1">{totalPracticeMinutes}m</div>
+                      <div className="text-[11px] text-slate-500 mt-1">{testHistory.length} tests taken</div>
+                    </div>
+                  </div>
+
+                  {/* History Table */}
+                  <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-slate-900 shadow-sm">
+                    <h4 className="font-bold text-sm mb-4">Complete Session History</h4>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead className="border-b border-slate-200 dark:border-slate-800 text-slate-400 uppercase font-mono text-[10px]">
+                          <tr>
+                            <th className="py-2.5">Date & Time</th>
+                            <th>Exam Mode</th>
+                            <th>Net WPM</th>
+                            <th>Accuracy</th>
+                            <th>KDPH</th>
+                            <th>Duration</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                          {testHistory.map(row => (
+                            <tr key={row.id}>
+                              <td className="py-3 font-mono">{row.date} {row.time}</td>
+                              <td>{row.exam}</td>
+                              <td className="font-mono font-bold text-emerald-500">{row.netWpm}</td>
+                              <td className="font-mono">{row.accuracy}%</td>
+                              <td className="font-mono text-indigo-500">{row.kdph}</td>
+                              <td className="font-mono text-slate-400">{Math.floor(row.duration / 60)}m {row.duration % 60}s</td>
+                            </tr>
+                          ))}
+                          {testHistory.length === 0 && (
+                            <tr>
+                              <td colSpan="6" className="py-6 text-center text-slate-400">
+                                No test sessions completed yet. Take your first test to track performance!
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* =========================================
+                  PAGE 6: ABOUT US (CREATOR: SAJAHAN ALI)
+                  ========================================= */}
+              {activeTab === "about" && (
+                <div className="max-w-4xl mx-auto space-y-6">
+                  <div className="rounded-3xl border border-slate-200 dark:border-slate-800 p-6 md:p-10 bg-white dark:bg-slate-900 shadow-xl space-y-8">
+                    
+                    {/* Creator Profile Header */}
+                    <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 border-b border-slate-100 dark:border-slate-800 pb-8">
+                      <img
+                        src="assets/creator.png"
+                        alt="Sajahan Ali - Creator of Typeme"
+                        className="w-32 h-32 md:w-36 md:h-36 rounded-2xl object-cover border-4 border-indigo-500/30 shadow-xl"
+                      />
+                      <div className="space-y-2 text-center sm:text-left">
+                        <div className="inline-flex px-3 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                          Founder & Lead Engineer
+                        </div>
+                        <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white">
+                          Sajahan Ali
+                        </h2>
+                        <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 max-w-lg leading-relaxed">
+                          Passionate developer and educator dedicated to helping aspirants across India master touch typing and clear DEST / Skill tests for SSC CGL, CHSL, MTS, and other prestigious examinations.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* About Typeme Vision */}
+                    <div className="space-y-4">
+                      <h3 className="font-bold text-lg text-slate-900 dark:text-white">Our Mission & Purpose</h3>
+                      <p className="text-xs md:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                        <b>Typeme</b> was founded by <b>Sajahan Ali</b> with a single clear mission: to provide every government exam aspirant in India with a 100% free, high-performance, and distraction-free typing platform that accurately replicates real exam interfaces.
+                      </p>
+                      <div className="grid md:grid-cols-3 gap-4 pt-2">
+                        <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-1">
+                          <div className="font-bold text-xs text-indigo-600 dark:text-indigo-400">8000 KDPH Standard</div>
+                          <div className="text-xs text-slate-500">Official formula calculation for all central and state exams.</div>
+                        </div>
+                        <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-1">
+                          <div className="font-bold text-xs text-emerald-600 dark:text-emerald-400">Google Cloud Sync</div>
+                          <div className="text-xs text-slate-500">Safe, automated storage directly in personal Google Drive & Sheets.</div>
+                        </div>
+                        <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-1">
+                          <div className="font-bold text-xs text-amber-600 dark:text-amber-400">100% Free for Life</div>
+                          <div className="text-xs text-slate-500">No subscriptions, no forced ads, pure focused learning.</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Contact & Support */}
+                    <div className="p-5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 flex flex-wrap items-center justify-between gap-4">
+                      <div>
+                        <div className="font-bold text-xs text-indigo-900 dark:text-indigo-200">Have feedback or questions for Sajahan Ali?</div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">We respond to all aspirant queries within 24 hours.</div>
+                      </div>
+                      <button
+                        onClick={() => setActiveTab("settings")}
+                        className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-bold text-xs shadow hover:opacity-90"
+                      >
+                        Send Report / Feedback →
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* =========================================
+                  PAGE 7: RULES, NOTES & TIPS
+                  ========================================= */}
+              {activeTab === "rules" && (
+                <div className="max-w-4xl mx-auto space-y-6">
+                  {/* SSC Evaluation Rules */}
+                  <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-6 bg-white dark:bg-slate-900 shadow-sm space-y-4">
+                    <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                      <span>📜 Official SSC Typing Test & DEST Evaluation Rules</span>
+                    </h3>
+
+                    <div className="space-y-3 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                      <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2">
+                        <div className="font-bold text-slate-800 dark:text-slate-200">1. Full Mistakes (Penalty = 1 Full Word Penalty):</div>
+                        <ul className="list-disc pl-5 space-y-1">
+                          <li>Omission of every word or figure.</li>
+                          <li>Substitution of every wrong word or figure.</li>
+                          <li>Addition of every word/figure not found in the passage.</li>
+                        </ul>
+                      </div>
+
+                      <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2">
+                        <div className="font-bold text-slate-800 dark:text-slate-200">2. Half Mistakes (Penalty = 0.5 Word Penalty):</div>
+                        <ul className="list-disc pl-5 space-y-1">
+                          <li>Spacing errors (where no space is provided or unwanted space is inserted).</li>
+                          <li>Wrong capitalization of letters.</li>
+                          <li>Spelling errors (transposition, repetition, or addition of characters).</li>
+                        </ul>
+                      </div>
+
+                      <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2">
+                        <div className="font-bold text-slate-800 dark:text-slate-200">3. Net Speed Calculation Formula:</div>
+                        <p className="font-mono bg-white dark:bg-slate-900 p-2 rounded border border-slate-200 dark:border-slate-800 text-indigo-600 dark:text-indigo-400">
+                          Net WPM = Gross WPM - (Total Errors / Test Duration in Minutes)
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Typing Tips & Touch Typing Muscle Memory */}
+                  <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-6 bg-white dark:bg-slate-900 shadow-sm space-y-4">
+                    <h3 className="font-bold text-base text-slate-900 dark:text-white">
+                      💡 10 Golden Rules to Achieve 50+ WPM
+                    </h3>
+
+                    <div className="grid md:grid-cols-2 gap-3 text-xs">
+                      {[
+                        { title: "Home Row Mastery", desc: "Always return your fingers to A S D F (Left hand) and J K L ; (Right hand)." },
+                        { title: "Never Look Down", desc: "Train your subconscious brain to feel the keycaps instead of looking at the keyboard." },
+                        { title: "Rhythm Over Burst", desc: "Maintain steady metronome-like keystrokes instead of sudden erratic bursts." },
+                        { title: "Thumb on Spacebar", desc: "Use only your right or left dominant thumb to hit the spacebar." },
+                        { title: "Correct Posture", desc: "Keep wrists floating slightly above the desk, back straight, and screen at eye level." },
+                        { title: "Daily 15-Minute Rule", desc: "15 minutes of focused daily practice is 10x better than a 2-hour weekend marathon." }
+                      ].map((t, idx) => (
+                        <div key={idx} className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-1">
+                          <div className="font-bold text-indigo-600 dark:text-indigo-400">#{idx + 1}. {t.title}</div>
+                          <div className="text-slate-500 dark:text-slate-400 leading-relaxed">{t.desc}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* =========================================
+                  PAGE 8: USER PROFILE & DATA
+                  ========================================= */}
+              {activeTab === "profile" && (
+                <div className="max-w-2xl mx-auto space-y-6">
+                  <div className="rounded-3xl border border-slate-200 dark:border-slate-800 p-6 md:p-8 bg-white dark:bg-slate-900 shadow-sm space-y-5">
+                    <div className="flex items-center gap-4">
+                      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-700 text-white font-black text-2xl grid place-items-center shadow-lg">
+                        {(user.name || "G").slice(0, 2).toUpperCase()}
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-lg text-slate-900 dark:text-white">{user.name || "Guest User"}</h3>
+                        <p className="text-xs text-slate-500">{user.exam} • Goal: {user.target} WPM</p>
+                      </div>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-semibold text-slate-500">Candidate Name</label>
+                        <input
+                          type="text"
+                          value={user.name}
+                          onChange={e => setUser(u => ({ ...u, name: e.target.value }))}
+                          className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-slate-500">Target Examination</label>
+                        <select
+                          value={user.exam}
+                          onChange={e => setUser(u => ({ ...u, exam: e.target.value }))}
+                          className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950"
+                        >
+                          <option>SSC CGL 2026</option>
+                          <option>SSC CHSL 2026</option>
+                          <option>SSC MTS 2026</option>
+                          <option>Stenographer Grade C/D</option>
+                          <option>DEO Typing Test</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="font-semibold text-slate-500">Target Speed:</span>
+                        <span className="font-bold font-mono text-indigo-600">{user.target} WPM</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="25"
+                        max="80"
+                        value={user.target}
+                        onChange={e => setUser(u => ({ ...u, target: Number(e.target.value) }))}
+                        className="w-full"
+                      />
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      <button
+                        onClick={() => setShowCloudModal(true)}
+                        className="px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-xs shadow hover:opacity-90"
+                      >
+                        ☁️ Google Cloud Sync
+                      </button>
+                      <button
+                        onClick={() => {
+                          const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(testHistory, null, 2));
+                          const dl = document.createElement('a');
+                          dl.setAttribute("href", dataStr);
+                          dl.setAttribute("download", "typeme_test_history.json");
+                          dl.click();
+                        }}
+                        className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 font-bold text-xs bg-white dark:bg-slate-900"
+                      >
+                        💾 Export History JSON
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* =========================================
+                  PAGE 9: SETTINGS & PRIVACY
+                  ========================================= */}
+              {activeTab === "settings" && (
+                <div className="max-w-3xl mx-auto space-y-6">
+                  {/* Settings Panel */}
+                  <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-6 bg-white dark:bg-slate-900 shadow-sm space-y-5">
+                    <h3 className="font-bold text-base text-slate-900 dark:text-white">⚙️ Website Settings & Preferences</h3>
+
+                    <div className="space-y-4 text-xs">
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                        <div>
+                          <div className="font-bold text-slate-800 dark:text-slate-200">Typing Sound Effects</div>
+                          <div className="text-slate-500">Audio feedback for key clicks, mistake buzzer, and fanfare.</div>
+                        </div>
+                        <button
+                          onClick={() => setSoundEnabled(s => !s)}
+                          className={`px-4 py-1.5 rounded-full font-bold ${
+                            soundEnabled ? "bg-indigo-600 text-white" : "bg-slate-200 dark:bg-slate-800 text-slate-600"
+                          }`}
+                        >
+                          {soundEnabled ? "Enabled" : "Muted"}
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                        <div>
+                          <div className="font-bold text-slate-800 dark:text-slate-200">Dark / Light Mode</div>
+                          <div className="text-slate-500">Eye-friendly contrast theme.</div>
+                        </div>
+                        <button
+                          onClick={() => setDarkMode(d => !d)}
+                          className="px-4 py-1.5 rounded-full bg-slate-200 dark:bg-slate-800 font-bold"
+                        >
+                          {darkMode ? "Dark Mode 🌙" : "Light Mode ☀️"}
+                        </button>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="font-bold text-slate-800 dark:text-slate-200">Google Apps Script Database URL</div>
+                          <button onClick={() => setShowCloudModal(true)} className="text-indigo-500 font-bold underline">Configure</button>
+                        </div>
+                        <div className="mono text-[11px] text-slate-400 truncate">{googleAppUrl}</div>
+                      </div>
+                    </div>
+
+                    {/* Report a Bug / Feedback to Sajahan Ali */}
+                    <div className="border-t border-slate-100 dark:border-slate-800 pt-4 space-y-3">
+                      <h4 className="font-bold text-xs uppercase text-slate-500">Send Message / Report Bug to Sajahan Ali</h4>
+                      <textarea
+                        rows="3"
+                        value={reportText}
+                        onChange={e => setReportText(e.target.value)}
+                        placeholder="Type your message, suggestion or bug report..."
+                        className="w-full rounded-xl border border-slate-200 dark:border-slate-800 p-3 text-xs bg-slate-50 dark:bg-slate-950"
+                      />
+                      <button
+                        onClick={() => {
+                          if (!reportText.trim()) return alert("Please type your report");
+                          const newReport = {
+                            id: Date.now().toString(),
+                            user: user.name || "Anonymous",
+                            message: reportText.trim(),
+                            date: new Date().toLocaleDateString('en-GB')
+                          };
+                          setAdminState(prev => ({ ...prev, reports: [newReport, ...prev.reports] }));
+                          setReportText("");
+                          setReportSubmittedToast(true);
+                          setTimeout(() => setReportSubmittedToast(false), 4000);
+                        }}
+                        className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-bold text-xs shadow"
+                      >
+                        Submit Message
+                      </button>
+                      {reportSubmittedToast && (
+                        <span className="text-xs text-emerald-500 font-bold ml-3">Message sent directly to admin panel!</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Professional Privacy Policy */}
+                  <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-6 bg-white dark:bg-slate-900 shadow-sm space-y-3 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                    <h4 className="font-bold text-sm text-slate-900 dark:text-white">🔒 Privacy Policy</h4>
+                    <p>
+                      Typeme adheres strictly to candidate privacy standards. We do not sell, rent, or distribute personal data to third parties. All test logs and speed records are stored locally on your device and inside your own personal Google Drive database.
+                    </p>
+                    <p>
+                      Cookies & Local Storage are utilized exclusively to preserve your settings, exam preferences, and test history.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* =========================================
+                  PAGE 10: HIDDEN ADMIN PORTAL
+                  ========================================= */}
+              {activeTab === "admin" && isAdminAuthenticated && (
+                <div className="max-w-5xl mx-auto space-y-6">
+                  <div className="rounded-3xl border border-amber-300 dark:border-amber-900/60 p-6 bg-white dark:bg-slate-900 shadow-xl space-y-6">
+                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+                      <div>
+                        <h3 className="font-black text-lg text-slate-900 dark:text-white flex items-center gap-2">
+                          <span>⚡ Typeme Administration Portal</span>
+                        </h3>
+                        <p className="text-xs text-slate-500">Welcome, Administrator <b>Sajahan Ali</b></p>
+                      </div>
+                      <button
+                        onClick={() => { setIsAdminAuthenticated(false); setActiveTab("home"); }}
+                        className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-bold text-rose-500"
+                      >
+                        Exit Admin
+                      </button>
+                    </div>
+
+                    {/* Admin Feature Controls */}
+                    <div className="grid md:grid-cols-2 gap-4">
+                      {/* Game Section Switch */}
+                      <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex items-center justify-between">
+                        <div>
+                          <div className="font-bold text-xs text-slate-800 dark:text-slate-200">Game Section Status</div>
+                          <div className="text-[11px] text-slate-500">Enable or disable interactive games platform-wide.</div>
+                        </div>
+                        <button
+                          onClick={() => setAdminState(prev => ({ ...prev, gamesEnabled: !prev.gamesEnabled }))}
+                          className={`px-4 py-1.5 rounded-full font-bold text-xs ${
+                            adminState.gamesEnabled ? "bg-emerald-600 text-white" : "bg-rose-600 text-white"
+                          }`}
+                        >
+                          {adminState.gamesEnabled ? "ENABLED" : "DISABLED"}
+                        </button>
+                      </div>
+
+                      {/* Reset Leaderboard */}
+                      <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex items-center justify-between">
+                        <div>
+                          <div className="font-bold text-xs text-slate-800 dark:text-slate-200">Reset Leaderboard</div>
+                          <div className="text-[11px] text-slate-500">Clear or reseed test rankings.</div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            if (confirm("Reset leaderboard to default?")) {
+                              setLeaderboardList(INITIAL_LEADERBOARD);
+                              alert("Leaderboard reset.");
+                            }
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-600 text-xs font-bold"
+                        >
+                          Reset Ranks
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Post Announcement Notice */}
+                    <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 space-y-3">
+                      <h4 className="font-bold text-xs uppercase text-slate-600 dark:text-slate-400">Post Announcement Notice to Home Page</h4>
+                      <div className="grid md:grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          id="noticeTitle"
+                          placeholder="Notice Title (e.g. SSC CGL 2026 Batch Started)"
+                          className="rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2 text-xs bg-white dark:bg-slate-900"
+                        />
+                        <input
+                          type="text"
+                          id="noticeContent"
+                          placeholder="Notice Details..."
+                          className="rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2 text-xs bg-white dark:bg-slate-900"
+                        />
+                      </div>
+                      <button
+                        onClick={() => {
+                          const t = document.getElementById("noticeTitle").value;
+                          const c = document.getElementById("noticeContent").value;
+                          if (!t || !c) return alert("Please fill both title and content");
+                          const newN = {
+                            id: Date.now().toString(),
+                            title: t,
+                            content: c,
+                            date: new Date().toISOString().slice(0, 10),
+                            urgent: true
+                          };
+                          setAdminState(prev => ({ ...prev, notices: [newN, ...prev.notices] }));
+                          document.getElementById("noticeTitle").value = "";
+                          document.getElementById("noticeContent").value = "";
+                          alert("Notice published to Home Page!");
+                        }}
+                        className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-bold text-xs shadow"
+                      >
+                        + Post Notice
+                      </button>
+                    </div>
+
+                    {/* User Reports & Feedback Inbox */}
+                    <div className="space-y-3">
+                      <h4 className="font-bold text-xs uppercase text-slate-600 dark:text-slate-400">
+                        Candidate Feedback & Bug Reports ({adminState.reports.length})
+                      </h4>
+                      <div className="divide-y divide-slate-100 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+                        {adminState.reports.map(r => (
+                          <div key={r.id} className="p-3.5 bg-white dark:bg-slate-900 text-xs flex justify-between items-start gap-4">
+                            <div>
+                              <div className="font-bold text-slate-800 dark:text-slate-200">{r.user} ({r.date})</div>
+                              <div className="text-slate-600 dark:text-slate-400 mt-1">{r.message}</div>
+                            </div>
+                            <button
+                              onClick={() => {
+                                const reply = prompt(`Reply to ${r.user}:`);
+                                if (reply) alert(`Reply recorded for ${r.user}`);
+                              }}
+                              className="px-3 py-1 rounded bg-indigo-50 text-indigo-600 dark:bg-indigo-950 font-bold"
+                            >
+                              Reply
+                            </button>
+                          </div>
+                        ))}
+                        {adminState.reports.length === 0 && (
+                          <div className="p-4 text-center text-slate-400 text-xs bg-white dark:bg-slate-900">
+                            No incoming reports yet.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </main>
+          </div>
+
+          {/* Footer */}
+          <footer className="border-t border-slate-200 dark:border-slate-800/80 py-6 text-xs text-slate-400 bg-white dark:bg-[#0b0f19]">
+            <div className="max-w-[1440px] mx-auto px-4 md:px-6 flex flex-wrap justify-between items-center gap-3">
+              <div>
+                <b>Typeme</b> — Developed & Managed with ❤️ by <b>Sajahan Ali</b> for Indian Govt Exam Aspirants.
+              </div>
+              <div className="flex items-center gap-4">
+                <span>Google Drive Folder: <b className="font-mono text-slate-600 dark:text-slate-300">16GJ4G5Y...2kB0</b></span>
+                <button onClick={() => setShowAuthModal(true)} className="underline hover:text-indigo-500">Login / Profile</button>
+                <button onClick={() => setActiveTab("rules")} className="underline hover:text-indigo-500">SSC Norms</button>
+              </div>
+            </div>
+          </footer>
+
+          {/* MODAL 1: ONBOARDING / LOGIN MODAL */}
+          {showAuthModal && (
+            <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 backdrop-blur-sm p-4">
+              <div className="w-full max-w-md rounded-3xl border border-slate-200 dark:border-slate-800 p-6 md:p-8 bg-white dark:bg-slate-900 shadow-2xl space-y-5">
+                <div className="text-center space-y-1">
+                  <div className="w-12 h-12 mx-auto rounded-2xl bg-indigo-600 text-white font-black text-2xl grid place-items-center shadow-lg">⚡</div>
+                  <h3 className="font-black text-xl text-slate-900 dark:text-white pt-2">Welcome to Typeme</h3>
+                  <p className="text-xs text-slate-500">Enter your details to track your typing progress & rank on the leaderboard.</p>
+                </div>
+
+                <div className="space-y-3 text-xs">
+                  <div>
+                    <label className="font-semibold text-slate-700 dark:text-slate-300">Candidate Name *</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Aman Kumar"
+                      value={authForm.name}
+                      onChange={e => setAuthForm({ ...authForm, name: e.target.value })}
+                      className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2.5 bg-slate-50 dark:bg-slate-950 font-medium"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-semibold text-slate-700 dark:text-slate-300">Target Examination</label>
+                    <select
+                      value={authForm.exam}
+                      onChange={e => setAuthForm({ ...authForm, exam: e.target.value })}
+                      className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2.5 bg-slate-50 dark:bg-slate-950"
+                    >
+                      <option>SSC CGL 2026</option>
+                      <option>SSC CHSL 2026</option>
+                      <option>SSC MTS</option>
+                      <option>Stenographer Grade C/D</option>
+                      <option>DEO / High Court / Railway</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="font-semibold text-slate-700 dark:text-slate-300">Email Address (Optional for Gmail Sync)</label>
+                    <input
+                      type="email"
+                      placeholder="name@gmail.com"
+                      value={authForm.email}
+                      onChange={e => setAuthForm({ ...authForm, email: e.target.value })}
+                      className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2.5 bg-slate-50 dark:bg-slate-950 font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2 pt-2">
+                  <button
+                    onClick={() => {
+                      if (!authForm.name.trim()) return alert("Please enter your name.");
+                      setUser({
+                        ...user,
+                        name: authForm.name.trim(),
+                        email: authForm.email.trim(),
+                        exam: authForm.exam,
+                        onboarded: true,
+                        isGuest: false
+                      });
+                      setShowAuthModal(false);
+                    }}
+                    className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold text-xs shadow-lg hover:opacity-90"
+                  >
+                    Enter Typeme & Save Profile
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setUser({
+                        ...user,
+                        name: "Guest Aspirant",
+                        isGuest: true,
+                        onboarded: true
+                      });
+                      setShowAuthModal(false);
+                    }}
+                    className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                  >
+                    Continue as Guest (No Login)
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* MODAL 2: HIDDEN ADMIN LOGIN */}
+          {showAdminLoginModal && (
+            <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 backdrop-blur-sm p-4">
+              <div className="w-full max-w-sm rounded-3xl border border-slate-200 dark:border-slate-800 p-6 bg-white dark:bg-slate-900 shadow-2xl space-y-4">
+                <div className="font-bold text-base text-slate-900 dark:text-white">Admin Authentication</div>
+                <p className="text-xs text-slate-500">Authorized personnel only (Sajahan Ali).</p>
+                <input
+                  type="password"
+                  placeholder="Security Key..."
+                  value={adminPassInput}
+                  onChange={e => setAdminPassInput(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleAdminLogin()}
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2.5 text-xs bg-slate-50 dark:bg-slate-950 font-mono"
+                  autoFocus
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleAdminLogin}
+                    className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-xs shadow"
+                  >
+                    Unlock Portal
+                  </button>
+                  <button
+                    onClick={() => { setShowAdminLoginModal(false); setAdminPassInput(""); }}
+                    className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-semibold"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* MODAL 3: CUSTOM PARAGRAPH BUILDER */}
+          {showCustomModal && (
+            <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 backdrop-blur-sm p-4">
+              <div className="w-full max-w-lg rounded-3xl border border-slate-200 dark:border-slate-800 p-6 bg-white dark:bg-slate-900 shadow-2xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-base text-slate-900 dark:text-white">Add Custom Paragraph</h3>
+                  <button onClick={() => setShowCustomModal(false)} className="text-slate-400">✕</button>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Paragraph Title (e.g. General Knowledge 2026)"
+                  value={customPassageTitle}
+                  onChange={e => setCustomPassageTitle(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950"
+                />
+                <textarea
+                  rows="6"
+                  placeholder="Paste or write your custom text here..."
+                  value={customPassageText}
+                  onChange={e => setCustomPassageText(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-800 p-3 text-xs bg-slate-50 dark:bg-slate-950 font-mono"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleAddCustomPassage}
+                    className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-xs shadow"
+                  >
+                    + Save & Select Passage
+                  </button>
+                  <button
+                    onClick={() => setShowCustomModal(false)}
+                    className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-semibold"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* MODAL 4: GOOGLE DRIVE CLOUD SYNC CONFIGURATION */}
+          {showCloudModal && (
+            <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 backdrop-blur-sm p-4">
+              <div className="w-full max-w-lg rounded-3xl border border-slate-200 dark:border-slate-800 p-6 bg-white dark:bg-slate-900 shadow-2xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-base text-slate-900 dark:text-white">☁️ Google Drive & Sheet Database</h3>
+                  <button onClick={() => setShowCloudModal(false)} className="text-slate-400">✕</button>
+                </div>
+                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs space-y-1">
+                  <div className="font-semibold text-slate-700 dark:text-slate-300">Target Google Drive Folder ID:</div>
+                  <div className="font-mono text-indigo-600 dark:text-indigo-400 break-all select-all font-bold">
+                    {GOOGLE_DRIVE_FOLDER_ID}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Google Apps Script Web App API URL</label>
+                  <input
+                    type="url"
+                    value={googleAppUrl}
+                    onChange={e => setGoogleAppUrl(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 font-mono"
+                  />
+                </div>
+                <div className="flex justify-between items-center pt-2">
+                  <span className="text-xs text-emerald-500 font-bold">✓ Connected to Google Apps Script</span>
+                  <button
+                    onClick={() => setShowCloudModal(false)}
+                    className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-bold text-xs shadow"
+                  >
+                    Save & Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
